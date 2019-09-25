@@ -19,4 +19,20 @@ Predicting the superhero alignment according to her traits and powers.
 
 # Work Split
 
-(TO BE DONE)
+- Data analysis
+  - Decide what to do with NaNs
+  - How to factorize some features
+  - Plot distributions [?] if needed for report 
+- Data engineering
+  - NaNs
+  - Factorization
+  - Feature selection [?]
+- Model Selection - performance check not needed so no Test set 
+  - Choose models to test
+  - Cross Validation
+  - Train
+  - Valid
+- Submit
+  - Train Model on whole set
+  - Create output file (programmatically)
+  - Submit on Kaggle
