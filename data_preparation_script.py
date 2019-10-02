@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 from IPython.display import display
+import matplotlib.pyplot as plt
 
 # Load Data
 
@@ -64,9 +65,26 @@ def get_stats(csv):
     result = pd.DataFrame({ 'nans': nans, 'unique': unique, 'val_type': val_type, 'min_val': min_val, 'max_val': max_val}) 
     return result
 
+def check_rows(csv):
+    for row in range(len(csv)):
+        print(row, csv.iloc[row].isna().sum())
+    return csv
+
+def distribution_in_columns(csv):
+    for col in list(csv):
+        print(csv[col].value_counts())
+    return csv
+        
+def plot_dist_y(csv):
+    plt.pie([len(csv[csv['Alignment'] == 'good']), len(csv[csv['Alignment'] == 'bad']), 
+             len(csv[csv['Alignment'] == 'neutral'])], labels = ['good', 'bad', 'neutral'])
+    plt.show()
+    return csv
+
 if __name__ == "__main__":
     csv = load_data()
     stats = get_stats(csv)
     print(*(stats["val_type"].unique()),sep="\n")
     with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
         print(stats)
+
