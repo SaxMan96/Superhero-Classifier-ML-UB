@@ -65,14 +65,36 @@ def get_stats(csv):
     result = pd.DataFrame({ 'nans': nans, 'unique': unique, 'val_type': val_type, 'min_val': min_val, 'max_val': max_val}) 
     return result
     
-def bool_to_integer(csv, stats) -> pd.DataFrame():
+def bool_to_integer(csv) -> pd.DataFrame():
     for col in csv.columns:
         if csv[col].dtype == bool:
-            csv[col] = csv[col].astype(int)
+            csv[col] = 2*(csv[col].astype(int)-.5)
+    return csv
+    
+def standarize_numerical_values(csv):
+    for col in csv.columns:
+        if col == 'train':
+            continue
+        if csv[col].dtype == np.float64:
+            data = csv[col]
+            std = data.std()
+            data = data[(data < data.quantile(0.99)) & (data > data.quantile(0.01))]
+            mean = data.mean()
+
+            csv[col] = (csv[col] - mean)/std
+            _ = plt.hist(csv[col], bins='auto', alpha = 0.5)
+            plt.yscale('log')
+            plt.title(f"Distr in {col} column")
+            plt.show()
     return csv
 
 if __name__ == "__main__":
     csv = load_data()
+    # Just ID not need it
+    csv = csv.drop(columns=['Id'])
+    csv = standarize_numerical_values(csv)
+    csv = bool_to_integer(csv)
+    
     stats = get_stats(csv)
     print(*(stats["val_type"].unique()),sep="\n")
     with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
