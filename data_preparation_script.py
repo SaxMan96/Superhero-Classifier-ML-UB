@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from IPython.display import display
 import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore")
 
 # Load Data
 
@@ -68,7 +70,7 @@ def get_stats(csv):
 def bool_to_integer(csv) -> pd.DataFrame():
     for col in csv.columns:
         if csv[col].dtype == bool:
-            csv[col] = 2*(csv[col].astype(int)-.5)
+            csv[col] = csv[col].astype(int)
     return csv
     
 def standarize_numerical_values(csv):
@@ -80,12 +82,11 @@ def standarize_numerical_values(csv):
             std = data.std()
             data = data[(data < data.quantile(0.99)) & (data > data.quantile(0.01))]
             mean = data.mean()
-
             csv[col] = (csv[col] - mean)/std
-            _ = plt.hist(csv[col], bins='auto', alpha = 0.5)
-            plt.yscale('log')
-            plt.title(f"Distr in {col} column")
-            plt.show()
+#             _ = plt.hist(csv[col], bins='auto', alpha = 0.5)
+#             plt.yscale('log')
+#             plt.title(f"Distr in {col} column")
+#             plt.show()
     return csv
 
 def check_rows(csv):
@@ -103,6 +104,18 @@ def plot_dist_y(csv):
              len(csv[csv['Alignment'] == 'neutral'])], labels = ['good', 'bad', 'neutral'])
     plt.show()
     return csv
+    
+def factorize(csv) -> pd.DataFrame():
+    for col in csv.select_dtypes(include=['object']).columns:
+        if col == "Alignment":
+            continue
+        dummy = pd.get_dummies(csv[col])
+        dummy.columns = [col+ " "+x for x in dummy.columns]
+        dummy = dummy.drop([dummy.columns[-1]], axis=1)
+        csv = csv.drop(col, axis=1)
+        csv = pd.concat([csv, dummy])
+    return csv
+
 
 if __name__ == "__main__":
     csv = load_data()
@@ -111,8 +124,8 @@ if __name__ == "__main__":
     csv = standarize_numerical_values(csv)
     csv = bool_to_integer(csv)
     
+    csv = factorize(csv)
     stats = get_stats(csv)
-    print(*(stats["val_type"].unique()),sep="\n")
     with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
         print(stats)
 
