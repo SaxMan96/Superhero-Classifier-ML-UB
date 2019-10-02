@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 from IPython.display import display
+import matplotlib.pyplot as plt
 
 # Load Data
 
@@ -63,6 +64,12 @@ def get_stats(csv):
     min_val, max_val = min_max_val(csv)
     result = pd.DataFrame({ 'nans': nans, 'unique': unique, 'val_type': val_type, 'min_val': min_val, 'max_val': max_val}) 
     return result
+    
+def bool_to_integer(csv, stats) -> pd.DataFrame():
+    for col in csv.columns:
+        if csv[col].dtype == bool:
+            csv[col] = csv[col].astype(int)
+    return csv
 
 if __name__ == "__main__":
     csv = load_data()
