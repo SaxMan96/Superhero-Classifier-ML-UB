@@ -128,4 +128,14 @@ if __name__ == "__main__":
     stats = get_stats(csv)
     with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
         print(stats)
+        
+    Y = csv["Alignment"]
+    csv = csv.drop("Alignment",axis=1)
+    X = csv
+
+    is_train = csv["train"] == 1
+    y_train, uniques = pd.factorize(Y[is_train])
+
+    x_train = X[is_train].values
+    x_test = X[is_train == False].values
 
