@@ -7,6 +7,14 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
+from sklearn.model_selection import train_test_split
+from tqdm import tqdm_notebook as tqdm
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
 # Load Data
 
 def load_data() -> pd.Series:
@@ -126,8 +134,8 @@ if __name__ == "__main__":
     
     csv = factorize(csv)
     stats = get_stats(csv)
-    with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
-        print(stats)
+    # with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
+        # print(stats)
         
     Y = csv["Alignment"]
     csv = csv.drop("Alignment",axis=1)
@@ -137,5 +145,41 @@ if __name__ == "__main__":
     y_train, uniques = pd.factorize(Y[is_train])
 
     x_train = X[is_train].values
+    x_train = pd.DataFrame(x_train).fillna(0)
+    
     x_test = X[is_train == False].values
 
+    x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.25,random_state=0)
+
+    clf = RandomForestClassifier(n_estimators=100, max_depth=44,random_state=0)
+    clf.fit(x_tr, y_tr)
+    print("RandomForestClassifier:")
+    print("Train",clf.score(x_tr, y_tr))
+    print("Valid",clf.score(x_valid, y_valid))
+    
+    clf = DecisionTreeClassifier(random_state=0)
+    clf.fit(x_tr, y_tr)
+    print("DecisionTreeClassifier:")
+    print("Train",clf.score(x_tr, y_tr))
+    print("Valid",clf.score(x_valid, y_valid))
+    
+    clf = KNeighborsClassifier(n_neighbors=3)
+    clf.fit(x_tr, y_tr)
+    print("KNeighborsClassifier:")
+    print("Train",clf.score(x_tr, y_tr))
+    print("Valid",clf.score(x_valid, y_valid))
+    
+    from sklearn.linear_model import LogisticRegression
+    clf = LogisticRegression(random_state=0, solver='sag',multi_class='multinomial')
+    clf.fit(x_train, y_train)
+    print("Final Training LogisticRegression")
+    print("Train + Valid",clf.score(x_train, y_train))
+    x_test = pd.DataFrame(x_test).fillna(0)
+    y_predict = clf.predict(x_test)
+    
+    y_predict = pd.DataFrame(y_predict)
+    y_predict[y_predict == 0] = "bad"
+    y_predict[y_predict == 1] = "good"
+    y_predict[y_predict == 2] = "neutral"
+    y_predict.columns = ["Prediction"]
+    y_predict.to_csv('result.csv',index_label ="Id")
