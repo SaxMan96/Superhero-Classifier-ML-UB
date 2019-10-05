@@ -121,7 +121,7 @@ def factorize(csv) -> pd.DataFrame():
         dummy.columns = [col+ " "+x for x in dummy.columns]
         dummy = dummy.drop([dummy.columns[-1]], axis=1)
         csv = csv.drop(col, axis=1)
-        csv = pd.concat([csv, dummy])
+        csv = pd.concat([csv, dummy], axis=1)
     return csv
 
 
