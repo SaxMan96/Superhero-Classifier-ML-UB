@@ -46,6 +46,8 @@ def val_types(csv) -> pd.Series():
             val_type.at[col] = np.int64
         elif csv[col].dtype == np.int32:
             val_type.at[col] = np.int32
+        elif csv[col].dtype == np.uint8:
+            val_type.at[col] = np.uint8
         elif csv[col].dtype == object:
             val_type.at[col] = object
         elif csv[col].dtype == bool:
