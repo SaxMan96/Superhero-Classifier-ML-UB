@@ -20,6 +20,10 @@ from sklearn.linear_model import LogisticRegression
 
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+from sklearn.svm import SVC 
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import make_scorer, f1_score
 # Load Data
 
 def load_data() -> pd.Series:
@@ -140,7 +144,36 @@ def rfc_fun(x, y):
         'class_weight':[None,'balanced']
     }
     CV_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv= 5).fit(x, y)
+    #confusion matrix
+    y_pred = CV_rfc.predict(x_tr)
+    cm = confusion_matrix(y_tr,  y_pred)
     return CV_rfc
+  
+def LogisticRegr_fun(x, y):
+    grid={"C":np.logspace(-3,3,7), "penalty":["l1","l2"]}# l1 lasso l2 ridge
+    logreg=LogisticRegression()
+    logreg_cv=GridSearchCV(logreg,grid,cv=10)
+    logreg_cv.fit(x_tr,y_tr)
+     #confusion matrix
+    logreg2=LogisticRegression(C=18,penalty="l2")
+    logreg2.fit(x_train,y_train)
+    
+    y_pred = logreg2.predict(x_tr)
+    cm = confusion_matrix(y_tr,  y_pred)
+   
+    return logreg2
+
+def SVC_fun(x, y):
+    svm = SVC()
+    parameters = {'kernel':('linear', 'rbf'), 'C':(1,0.25,0.5,0.75),'gamma': (1,2,3,5,10,'auto'),'decision_function_shape':('ovo','ovr'),'shrinking':(True,False)}
+    my_scorer = make_scorer(f1_score, greater_is_better=True, average='micro')
+    svc = GridSearchCV(svm, parameters,scoring=my_scorer)
+    svc.fit(x_tr,y_tr, sample_weight=None)
+    #confusion matrix
+    y_pred = svc.predict(x_tr)
+    cm = confusion_matrix(y_tr,  y_pred)
+   
+    return svc 
     
 
 
