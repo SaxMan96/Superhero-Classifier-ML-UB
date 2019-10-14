@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 from IPython.display import display
+
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
@@ -15,6 +16,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
+
 # Load Data
 
 def load_data() -> pd.Series:
