@@ -176,12 +176,22 @@ def SVC_fun(x, y):
     return svc 
     
     def test_loop_GSC(x,y):
-        for rndm_st in [0,35,42,60]: #recall the classifier functions inside here
-            x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=rndm_st)
-            vec1=rfc_fun(x_tr, y_tr,rndm_st)
-            vec2=LogisticRegr_fun(x_tr, y_tr, rndm_st)
-            vec3=SVC_fun(x_tr, y_tr,rndm_st)
-    return vec1, vec2, vec3   
+    acc1=[]
+    acc2=[]
+    acc3=[]
+    for rndm_st in [0,35,42,60]:
+        x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=rndm_st)
+         #recall the classifier functions inside here 
+        pred=CV_rfc.predict(x_valid)
+        rfc_fun(x_tr, y_tr,rndm_st)
+        acc1.append(accuracy_score(y_valid,pred))
+        
+        logreg=LogisticRegr_fun(x_tr, y_tr, rndm_st)
+        acc2.append(logreg.score(x_valid,y_valid))
+        
+        SVC_fun(x_tr, y_tr,rndm_st)
+        acc3.append(np.average(cross_val_score(svc, x_tr, y_tr, scoring=my_scorer)))
+return acc1, acc2, acc3     
 
 if __name__ == "__main__":
     csv = load_data()
@@ -251,8 +261,7 @@ if __name__ == "__main__":
     
     
     v1,v2,v3=test_loop_GSC(x_tr,y_tr)   
-    for v in [v1,v2,v3]:
-        vec_acc=[]
-        pred = rfc.predict(x_valid)
-        print("Accuracy comparison: ", accuracy_score(y_valid,pred))
+    print("Accuracy scores RFC: ", v1)
+    print("Accuracy scores LogReg: ", v2)
+    print("Accuracy scores svm: ", v3)
         
