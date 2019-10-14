@@ -135,7 +135,7 @@ def factorize(csv) -> pd.DataFrame():
         csv = pd.concat([csv, dummy], axis=1)
     return csv
     
-def rfc_fun(x, y):
+def rfc_fun(x_tr, y_tr):
     rfc = RandomForestClassifier(max_features = 'auto', random_state=0)
     param_grid = { 
         'n_estimators': [15,50, 100],
@@ -149,7 +149,7 @@ def rfc_fun(x, y):
     cm = confusion_matrix(y_tr,  y_pred)
     return CV_rfc
   
-def LogisticRegr_fun(x, y):
+def LogisticRegr_fun(x_tr, y_tr):
     grid={"C":np.logspace(-3,3,7), "penalty":["l1","l2"]}# l1 lasso l2 ridge
     logreg=LogisticRegression()
     logreg_cv=GridSearchCV(logreg,grid,cv=10)
@@ -168,14 +168,20 @@ def SVC_fun(x, y):
     parameters = {'kernel':('linear', 'rbf'), 'C':(1,0.25,0.5,0.75),'gamma': (1,2,3,5,10,'auto'),'decision_function_shape':('ovo','ovr'),'shrinking':(True,False)}
     my_scorer = make_scorer(f1_score, greater_is_better=True, average='micro')
     svc = GridSearchCV(svm, parameters,scoring=my_scorer)
-    svc.fit(x_tr,y_tr, sample_weight=None)
+    svc.fit(x,y, sample_weight=None)
     #confusion matrix
     y_pred = svc.predict(x_tr)
     cm = confusion_matrix(y_tr,  y_pred)
    
     return svc 
     
-
+    def test_loop_GSC(x,y):
+        for rndm_st in [0,35,42,60]: #recall the classifier functions inside here
+            x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=rndm_st)
+            vec1=rfc_fun(x_tr, y_tr,rndm_st)
+            vec2=LogisticRegr_fun(x_tr, y_tr, rndm_st)
+            vec3=SVC_fun(x_tr, y_tr,rndm_st)
+    return vec1, vec2, vec3   
 
 if __name__ == "__main__":
     csv = load_data()
@@ -241,3 +247,12 @@ if __name__ == "__main__":
     rfc = rfc_fun(x_tr, y_tr)
     pred = rfc.predict(x_valid)
     print("Accuracy for Random Forest on CV data: ", accuracy_score(y_valid,pred))
+    
+    
+    
+    v1,v2,v3=test_loop_GSC(x_tr,y_tr)   
+    for v in [v1,v2,v3]:
+        vec_acc=[]
+        pred = rfc.predict(x_valid)
+        print("Accuracy comparison: ", accuracy_score(y_valid,pred))
+        
