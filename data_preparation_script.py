@@ -17,6 +17,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score
 # Load Data
 
 def load_data() -> pd.Series:
@@ -127,6 +130,18 @@ def factorize(csv) -> pd.DataFrame():
         csv = csv.drop(col, axis=1)
         csv = pd.concat([csv, dummy], axis=1)
     return csv
+    
+def rfc_fun(x, y):
+    rfc = RandomForestClassifier(max_features = 'auto', random_state=0)
+    param_grid = { 
+        'n_estimators': [15,50, 100],
+        'max_depth' : [1,2,3,5,10,20],
+        'criterion' :['gini', 'entropy'],
+        'class_weight':[None,'balanced']
+    }
+    CV_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv= 5).fit(x, y)
+    return CV_rfc
+    
 
 
 if __name__ == "__main__":
@@ -155,11 +170,12 @@ if __name__ == "__main__":
 
     x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.25,random_state=0)
 
-    clf = RandomForestClassifier(n_estimators=100, max_depth=44,random_state=0)
-    clf.fit(x_tr, y_tr)
-    print("RandomForestClassifier:")
-    print("Train",clf.score(x_tr, y_tr))
-    print("Valid",clf.score(x_valid, y_valid))
+    
+    # clf = RandomForestClassifier(n_estimators=100, max_depth=44,random_state=0)
+    # clf.fit(x_tr, y_tr)
+    # print("RandomForestClassifier:")
+    # print("Train",clf.score(x_tr, y_tr))
+    # print("Valid",clf.score(x_valid, y_valid))
     
     clf = DecisionTreeClassifier(random_state=0)
     clf.fit(x_tr, y_tr)
@@ -187,3 +203,8 @@ if __name__ == "__main__":
     y_predict[y_predict == 2] = "neutral"
     y_predict.columns = ["Prediction"]
     y_predict.to_csv('result.csv',index_label ="Id")
+    
+
+    rfc = rfc_fun(x_tr, y_tr)
+    pred = rfc.predict(x_valid)
+    print("Accuracy for Random Forest on CV data: ", accuracy_score(y_valid,pred))
