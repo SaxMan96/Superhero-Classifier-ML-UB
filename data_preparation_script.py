@@ -16,11 +16,13 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-
-
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, make_scorer, f1_score, confusion_matrix
 # Load Data
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+# from sklearn.metrics import classification_report, , f1_score, accuracy_score, roc_curve, auc
+
 
 def load_data() -> pd.Series:
     csv_train = pd.read_csv('superhero-or-supervillain/train.csv').assign(train = 1) 
@@ -131,18 +133,80 @@ def factorize(csv) -> pd.DataFrame():
         csv = pd.concat([csv, dummy], axis=1)
     return csv
     
-def rfc_fun(x, y):
-    rfc = RandomForestClassifier(max_features = 'auto', random_state=0)
-    param_grid = { 
-        'n_estimators': [15,50, 100],
-        'max_depth' : [1,2,3,5,10,20],
-        'criterion' :['gini', 'entropy'],
-        'class_weight':[None,'balanced']
+def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
+    gs_dict = {}
+    clfs_dict = {
+        'DTC': DecisionTreeClassifier(random_state=0),
+        'RFC': RandomForestClassifier(random_state=0),
+        'KNN': KNeighborsClassifier(),
+        'LR': LogisticRegression(random_state=35)
     }
-    CV_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv= 5).fit(x, y)
-    return CV_rfc
-    
+    param_grids = {
+        'DTC': {
+            '__max_depth': [None,1,2,3,4,5,7,10,15],
+            '__criterion': ['gini', 'entropy'],
+            '__class_weight': [None],
+            '__presort': [False,True],
+#             '__min_samples_split': np.linspace(0.001,1.0,7,endpoint=True),
+#             '__min_weight_fraction_leaf': np.linspace(0.05,0.4,5) 
+        },
+        'RFC': { 
+            '__n_estimators': [15,50, 100],
+            '__max_depth' : [1,2,3,5,10,20],
+            '__criterion' : ['gini', 'entropy'],
+            '__class_weight': [None,'balanced'],
+            '__max_features': ['auto']
+        },
+        'KNN': {
+            '__n_neighbors': range(1, 12),
+            '__weights': ['uniform', 'distance'],
+        },
+        'LR': {
+            "__C": np.logspace(-3,3,7), 
+            "__penalty":["l1","l2"]
+        }# l1 lasso l2 ridge
+    }
+    scorer = make_scorer(f1_score, average='micro')            
+    for clf_name in clfs_dict:
+        clf_name = 'LR'
+        if use_scaler:
+            pipe_line = Pipeline([('scaler', StandardScaler()), ('', clfs_dict[clf_name])])
+        else:
+            pipe_line = clfs_dict[clf_name]
+            
+        if use_grid_search:
+            gs = GridSearchCV(pipe_line, param_grid=param_grids[clf_name], scoring=scorer, verbose=verbose)
+        else:
+            gs = pipe_line
+        gs_dict[clf_name] = gs
+        break
+    return gs_dict
+        
+def model_selection(x_train, x_valid, y_train, y_valid):
+    gs_dict = prepare_models(use_scaler = True, use_grid_search = True, verbose=False)
+#     gs_dict = prepare_models(verbose=True)
+    for gs_name in gs_dict:        
+        gs = gs_dict[gs_name].fit(x_train,y_train)
+        print("\n==================================================================\n", gs_name, end="\t")
+#         print("\tF1-Score: ", np.round(100*gs.score(x_valid, y_valid),1), "%", sep="", end="\t")
+        print("\tAccuracy Valid: ", np.round(100*accuracy_score(y_valid,gs.predict(x_valid)),1),"%",sep="", end="")
+        print("\tAccuracy Train: ", np.round(100*accuracy_score(y_train,gs.predict(x_train)),1),"%",sep="")
+        print("\tBest params: ", gs.best_params_)
+        print(pd.DataFrame(confusion_matrix(y_valid, gs.predict(x_valid)),
+                     columns=['Predicted 0', 'Predicted 1', 'Predicted 2'],
+                     index=['Actual 0', 'Actual 1', 'Actual 2']))
+        gs_dict[gs_name] = gs
+    return gs_dict
 
+def predict(clf, x_test):
+    x_test = pd.DataFrame(x_test).fillna(0)
+    y_predict = clf.predict(x_test)
+    y_predict = pd.DataFrame(y_predict)
+    y_predict[y_predict == 0] = "bad"
+    y_predict[y_predict == 1] = "good"
+    y_predict[y_predict == 2] = "neutral"
+    y_predict.columns = ["Prediction"]
+    y_predict.to_csv('result.csv',index_label ="Id")
 
 if __name__ == "__main__":
     csv = load_data()
@@ -168,43 +232,8 @@ if __name__ == "__main__":
     
     x_test = X[is_train == False].values
 
-    x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.25,random_state=0)
+    x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=35)
 
-    
-    # clf = RandomForestClassifier(n_estimators=100, max_depth=44,random_state=0)
-    # clf.fit(x_tr, y_tr)
-    # print("RandomForestClassifier:")
-    # print("Train",clf.score(x_tr, y_tr))
-    # print("Valid",clf.score(x_valid, y_valid))
-    
-    clf = DecisionTreeClassifier(random_state=0)
-    clf.fit(x_tr, y_tr)
-    print("DecisionTreeClassifier:")
-    print("Train",clf.score(x_tr, y_tr))
-    print("Valid",clf.score(x_valid, y_valid))
-    
-    clf = KNeighborsClassifier(n_neighbors=3)
-    clf.fit(x_tr, y_tr)
-    print("KNeighborsClassifier:")
-    print("Train",clf.score(x_tr, y_tr))
-    print("Valid",clf.score(x_valid, y_valid))
-    
-    from sklearn.linear_model import LogisticRegression
-    clf = LogisticRegression(random_state=0, solver='sag',multi_class='multinomial')
-    clf.fit(x_train, y_train)
-    print("Final Training LogisticRegression")
-    print("Train + Valid",clf.score(x_train, y_train))
-    x_test = pd.DataFrame(x_test).fillna(0)
-    y_predict = clf.predict(x_test)
-    
-    y_predict = pd.DataFrame(y_predict)
-    y_predict[y_predict == 0] = "bad"
-    y_predict[y_predict == 1] = "good"
-    y_predict[y_predict == 2] = "neutral"
-    y_predict.columns = ["Prediction"]
-    y_predict.to_csv('result.csv',index_label ="Id")
-    
-
-    rfc = rfc_fun(x_tr, y_tr)
-    pred = rfc.predict(x_valid)
-    print("Accuracy for Random Forest on CV data: ", accuracy_score(y_valid,pred))
+    gs_dict = model_selection(x_tr,x_valid, y_tr, y_valid)
+    clf = gs_dict["LR"]
+    predict(clf, x_test)
