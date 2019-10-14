@@ -187,3 +187,28 @@ if __name__ == "__main__":
     y_predict[y_predict == 2] = "neutral"
     y_predict.columns = ["Prediction"]
     y_predict.to_csv('result.csv',index_label ="Id")
+    
+    from sklearn.model_selection import GridSearchCV
+
+    param_grid = { 
+        'n_estimators': [15,50, 100],
+        'max_features': ['auto'],
+        'max_depth' : [1,2,3,5,10,20],
+        'criterion' :['gini', 'entropy'],
+        'class_weight':[None,'balanced']
+    }
+    rfc = RandomForestClassifier(n_estimators=100, max_depth=44,random_state=0)
+    CV_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv= 5)
+    CV_rfc.fit(x_tr, y_tr)
+
+
+
+
+    CV_rfc.best_params_
+
+    pred=CV_rfc.predict(x_valid)
+
+
+    from sklearn.metrics import accuracy_score
+
+    print("Accuracy for Random Forest on CV data: ", accuracy_score(y_valid,pred))
