@@ -20,7 +20,6 @@ Predicting the superhero alignment according to her traits and powers.
 - Data analysis
   - Decide what to do with NaNs
   - How to factorize some features
-  - Plot distributions [?] if needed for report 
 - Data engineering
   - NaNs
   - Factorization
