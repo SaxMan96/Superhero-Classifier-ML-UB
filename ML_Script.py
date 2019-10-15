@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm_notebook as tqdm
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
@@ -16,17 +15,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV
-<<<<<<< HEAD:ML_Script.py
+from sklearn.model_selection import GridSearchCV, cross_val_score, train_test_split
 from sklearn.metrics import accuracy_score, make_scorer, f1_score, confusion_matrix
 from sklearn.decomposition import PCA
-=======
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
-from sklearn.svm import SVC 
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import make_scorer, f1_score
->>>>>>> c31818786465176a9d530ae7c90bd21ee83eecb1:data_preparation_script.py
+
 # Load Data
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -157,7 +149,7 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
 #         'XGB': XGBClassifier(random_state=0)
         'SVC': SVC(random_state=0)
     }
-<<<<<<< HEAD:ML_Script.py
+
     param_grids = {
         'DTC': {
             '__max_depth': [None,1,2,3,4,5,7,10,15],
@@ -226,40 +218,6 @@ def model_selection(x_train, x_valid, y_train, y_valid):
                      index=['Actual 0', 'Actual 1', 'Actual 2']))
         gs_dict[gs_name] = gs
     return gs_dict
-=======
-    CV_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv= 5).fit(x, y)
-    #confusion matrix
-    y_pred = CV_rfc.predict(x_tr)
-    cm = confusion_matrix(y_tr,  y_pred)
-    return CV_rfc
-  
-def LogisticRegr_fun(x, y):
-    grid={"C":np.logspace(-3,3,7), "penalty":["l1","l2"]}# l1 lasso l2 ridge
-    logreg=LogisticRegression()
-    logreg_cv=GridSearchCV(logreg,grid,cv=10)
-    logreg_cv.fit(x_tr,y_tr)
-     #confusion matrix
-    logreg2=LogisticRegression(C=18,penalty="l2")
-    logreg2.fit(x_train,y_train)
-    
-    y_pred = logreg2.predict(x_tr)
-    cm = confusion_matrix(y_tr,  y_pred)
-   
-    return logreg2
-
-def SVC_fun(x, y):
-    svm = SVC()
-    parameters = {'kernel':('linear', 'rbf'), 'C':(1,0.25,0.5,0.75),'gamma': (1,2,3,5,10,'auto'),'decision_function_shape':('ovo','ovr'),'shrinking':(True,False)}
-    my_scorer = make_scorer(f1_score, greater_is_better=True, average='micro')
-    svc = GridSearchCV(svm, parameters,scoring=my_scorer)
-    svc.fit(x_tr,y_tr, sample_weight=None)
-    #confusion matrix
-    y_pred = svc.predict(x_tr)
-    cm = confusion_matrix(y_tr,  y_pred)
-   
-    return svc 
-    
->>>>>>> c31818786465176a9d530ae7c90bd21ee83eecb1:data_preparation_script.py
 
 def predict(clf, x_test):
     x_test = pd.DataFrame(x_test).fillna(0)
@@ -270,7 +228,6 @@ def predict(clf, x_test):
     y_predict[y_predict == 2] = "neutral"
     y_predict.columns = ["Prediction"]
     y_predict.to_csv('result.csv',index_label ="Id")
-
 
 def pca_decomp(x_tr, x_valid, y_tr, y_valid):
     x_tr = StandardScaler().fit_transform(x_tr)
