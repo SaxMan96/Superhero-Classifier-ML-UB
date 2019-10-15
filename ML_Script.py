@@ -27,16 +27,26 @@ from imblearn.over_sampling import SMOTE
 from collections import Counter
 from xgboost import XGBClassifier
 from sklearn.svm import SVC
-# from sklearn.metrics import classification_report, , f1_score, accuracy_score, roc_curve, auc
+import category_encoders as ce
 
 
-def load_data() -> pd.Series:
+def load_data():
     csv_train = pd.read_csv('superhero-or-supervillain/train.csv').assign(train = 1) 
     csv_test = pd.read_csv('superhero-or-supervillain/test.csv').assign(train = 0) 
-    csv = pd.concat([csv_train,csv_test], sort=True)
-    return csv
-
-# Analyze Data
+    csv = pd.concat([csv_train,csv_test], sort=True)    
+    csv = csv.drop(columns=['Id'])
+#     with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
+#         print(get_stats(csv))
+    csv = bool_to_integer(csv)
+    is_train = csv["train"] == 1
+    csv = csv.drop("train",axis=1)
+    Y = csv["Alignment"]
+    csv = csv.drop("Alignment",axis=1)
+    X = csv
+    y_train, uniques = pd.factorize(Y[is_train])
+    X_train = X[is_train]
+    X_test = X[is_train == False]
+    return X_train, y_train, X_test
 
 def nans_ctr(csv) -> pd.Series:
     return csv.isna().sum()
@@ -146,7 +156,7 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
 #         'RFC': RandomForestClassifier(random_state=0),
 #         'KNN': KNeighborsClassifier(),
 #         'LR': LogisticRegression(random_state=35)
-#         'XGB': XGBClassifier(random_state=0)
+        'XGB': XGBClassifier(random_state=0),
         'SVC': SVC(random_state=0)
     }
 
@@ -164,18 +174,18 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
             '__max_depth' : [1,2,3,5,10,20],
             '__criterion' : ['gini', 'entropy'],
             '__class_weight': [None,'balanced'],
-            '__max_features' : list(range(6,32,5))+['auto']
+#             '__max_features' : list(range(6,32,5))+['auto']
         },
         'KNN': {
             '__n_neighbors': range(1, 12),
             '__weights': ['uniform', 'distance'],
         },
         'LR': {
-            "__C": np.logspace(-4,4,20), 
+            "__C": np.logspace(-3,3,10), 
             "__penalty":["l1","l2"]
         },
         'XGB': {
-            '__n_estimators': [80, 100,200,300]
+            '__n_estimators': [80, 100,200,300],
             '__min_child_weight': [1, 5, 10],
             '__gamma': [0.5, 1, 1.5, 2, 5],
             '__subsample': [0.6, 0.8, 1.0],
@@ -198,7 +208,7 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
             pipe_line = clfs_dict[clf_name]
             
         if use_grid_search:
-            gs = GridSearchCV(pipe_line, param_grid=param_grids[clf_name], scoring=scorer, verbose=verbose)
+            gs = GridSearchCV(pipe_line, param_grid=param_grids[clf_name], scoring=scorer, verbose=verbose, iid=True)
         else:
             gs = pipe_line
         gs_dict[clf_name] = gs
@@ -220,7 +230,7 @@ def model_selection(x_train, x_valid, y_train, y_valid):
     return gs_dict
 
 def predict(clf, x_test):
-    x_test = pd.DataFrame(x_test).fillna(0)
+#     x_test = pd.DataFrame(x_test)
     y_predict = clf.predict(x_test)
     y_predict = pd.DataFrame(y_predict)
     y_predict[y_predict == 0] = "bad"
@@ -237,29 +247,47 @@ def pca_decomp(x_tr, x_valid, y_tr, y_valid):
     print(len(pca.components_))
     return x_tr, x_valid, y_tr, y_valid
 
-def feature_extraction(csv):
-    csv = csv.drop(columns=['Id'])
-    csv = standarize_numerical_values(csv)
-    csv = bool_to_integer(csv)
-    csv = factorize(csv)
-    stats = get_stats(csv)
-    # with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
-        # print(stats)
-    Y = csv["Alignment"]
-    csv = csv.drop("Alignment",axis=1)
-    X = csv
-    is_train = csv["train"] == 1
-    y_train, uniques = pd.factorize(Y[is_train])
-    x_train = X[is_train].values
-    x_train = pd.DataFrame(x_train).fillna(0)
-    x_test = X[is_train == False].values
-    return x_train, y_train, x_test
+def feature_encoding(X_train, y_train, X_test, method='ordinal'):
+    columns = list(X_train.select_dtypes(include=['object']).columns)    
+    if method == "ordinal":
+        ce_binary = ce.OrdinalEncoder(cols = columns)
+    elif method == "binary":
+        ce_binary = ce.BinaryEncoder(cols = columns)
+    elif method == "onehot":
+        ce_binary = ce.OneHotEncoder(cols = columns)
+    elif method == "basen":
+        ce_binary = ce.BaseNEncoder(cols = columns)  
+    elif method == "hashing":
+        ce_binary = ce.HashingEncoder(cols = columns)           
+    else:
+        raise Exception("Wrong Method Choosen!")
+    
+    X_train= ce_binary.fit_transform(X_train, y_train)
+    X_test = ce_binary.transform(X_test)
+    return X_train.values, y_train, X_test.values
+
+def filling_nans(data, method = "method"):
+    df = data.copy()
+    for label in df.columns:
+        if method == "randomdistrubuted":
+            df[label].fillna(lambda x: random.choice(df[df[label] != np.nan][label]), inplace =True)
+        elif method=="new_value":
+            df[label].fillna(0, inplace =True)
+        elif method=="mostfrequent":
+            df[label].fillna(df[label].value_counts().idxmax(), inplace =True)
+    return df
+
+def perform_final_training(clf, x_tr, y_tr):
+    return clf.fit(x_tr, y_tr)
+    
     
 if __name__ == "__main__":
-    csv = load_data()
-    x_train, y_train, x_test = feature_extraction(csv)
+    X_train, y_train, X_test = load_data() #X_train and X_test are Dataframes
+    X_train = filling_nans(X_train, method = "new_value")
+    X_test = filling_nans(X_test, method = "new_value")
+    x_train, y_train, x_test = feature_encoding(X_train, y_train, X_test, method="onehot") #x_train and x_test are nd.arrays
     x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=0)
-    
+
 #     x_tr, x_valid, y_tr, y_valid = pca_decomp(x_tr, x_valid, y_tr, y_valid)     
 #     for i in [x_tr, y_tr, x_valid, y_valid]:
 #         print(i.shape)
@@ -267,8 +295,35 @@ if __name__ == "__main__":
 #     sm = SMOTE(random_state=0)
 #     x_tr, y_tr = sm.fit_resample(x_tr, y_tr)
 #     print('Original dataset shape train: %s' % Counter(y_tr))
-    
+
     gs_dict = model_selection(x_tr,x_valid, y_tr, y_valid)
-    
-#     clf = gs_dict["LR"]
+#     clf = gs_dict["KNN"]
+#     clf = perform_final_training(clf, x_tr, y_tr)
 #     predict(clf, x_test)
+
+
+# if __name__ == "__main__":
+# #     , "new_value", "mostfrequent"
+#     for fill_nans_method in ["randomdistrubuted"]:
+#         print(fill_nans_method)
+# #         ,"ordinal", "binary",  "basen", "hashing"
+#         for encoding_method in ["onehot"]:
+#             print("\t", encoding_method)
+#             X_train, y_train, X_test = load_data() #X_train and X_test are Dataframes
+#             X_train = filling_nans(X_train, method = fill_nans_method)
+#             X_test = filling_nans(X_test, method = fill_nans_method)
+#             x_train, y_train, x_test = feature_encoding(X_train, y_train, X_test, method=encoding_method) #x_train and x_test are nd.arrays
+#             x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=0)
+
+#         #     x_tr, x_valid, y_tr, y_valid = pca_decomp(x_tr, x_valid, y_tr, y_valid)     
+#         #     for i in [x_tr, y_tr, x_valid, y_valid]:
+#         #         print(i.shape)
+#         #     print('Original dataset shape train: %s' % Counter(y_tr))
+#         #     sm = SMOTE(random_state=0)
+#         #     x_tr, y_tr = sm.fit_resample(x_tr, y_tr)
+#         #     print('Original dataset shape train: %s' % Counter(y_tr))
+
+#             gs_dict = model_selection(x_tr,x_valid, y_tr, y_valid)
+#             print("\t\t", gs_dict, np.mean(list(gs_dict.values())))
+# #     clf = gs_dict["LR"]
+# #     predict(clf, x_test)
