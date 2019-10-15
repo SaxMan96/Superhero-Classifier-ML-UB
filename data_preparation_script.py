@@ -18,9 +18,13 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score, make_scorer, f1_score, confusion_matrix
+from sklearn.decomposition import PCA
 # Load Data
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+from imblearn.over_sampling import SMOTE
+from collections import Counter
 # from sklearn.metrics import classification_report, , f1_score, accuracy_score, roc_curve, auc
 
 
@@ -168,7 +172,6 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
     }
     scorer = make_scorer(f1_score, average='micro')            
     for clf_name in clfs_dict:
-        clf_name = 'LR'
         if use_scaler:
             pipe_line = Pipeline([('scaler', StandardScaler()), ('', clfs_dict[clf_name])])
         else:
@@ -179,7 +182,6 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
         else:
             gs = pipe_line
         gs_dict[clf_name] = gs
-        break
     return gs_dict
         
 def model_selection(x_train, x_valid, y_train, y_valid):
@@ -208,32 +210,46 @@ def predict(clf, x_test):
     y_predict.columns = ["Prediction"]
     y_predict.to_csv('result.csv',index_label ="Id")
 
-if __name__ == "__main__":
-    csv = load_data()
-    # Just ID not need it
+
+def pca_decomp(x_tr, x_valid, y_tr, y_valid):
+    x_tr = StandardScaler().fit_transform(x_tr)
+    pca = PCA(n_components=0.9, svd_solver='full', random_state=0).fit(x_tr)
+    x_tr = pca.transform(x_tr)
+    x_valid = pca.transform(x_valid)
+    print(len(pca.components_))
+    return x_tr, x_valid, y_tr, y_valid
+
+def feature_extraction(csv):
     csv = csv.drop(columns=['Id'])
     csv = standarize_numerical_values(csv)
     csv = bool_to_integer(csv)
-    
     csv = factorize(csv)
     stats = get_stats(csv)
     # with pd.option_context('display.max_rows', 500, 'display.max_columns', 500, 'display.width', 1000):
         # print(stats)
-        
     Y = csv["Alignment"]
     csv = csv.drop("Alignment",axis=1)
     X = csv
-
     is_train = csv["train"] == 1
     y_train, uniques = pd.factorize(Y[is_train])
-
     x_train = X[is_train].values
     x_train = pd.DataFrame(x_train).fillna(0)
-    
     x_test = X[is_train == False].values
-
-    x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=35)
-
+    
+    
+if __name__ == "__main__":
+    csv = load_data()
+    x_train, y_train = feature_extraction(csv)
+    x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=0)
+#     x_tr, x_valid, y_tr, y_valid = pca_decomp(x_tr, x_valid, y_tr, y_valid)     
+#     for i in [x_tr, y_tr, x_valid, y_valid]:
+#         print(i.shape)
+    print('Original dataset shape train: %s' % Counter(y_tr))
+    print('Original dataset shape valid: %s' % Counter(y_valid))
+        
+    sm = SMOTE(random_state=0)
+    x_tr, y_tr = sm.fit_resample(x_tr, y_tr)
+    
     gs_dict = model_selection(x_tr,x_valid, y_tr, y_valid)
-    clf = gs_dict["LR"]
-    predict(clf, x_test)
+#     clf = gs_dict["LR"]
+#     predict(clf, x_test)
