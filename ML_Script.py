@@ -25,6 +25,8 @@ from sklearn.preprocessing import StandardScaler
 
 from imblearn.over_sampling import SMOTE
 from collections import Counter
+from xgboost import XGBClassifier
+from sklearn.svm import SVC
 # from sklearn.metrics import classification_report, , f1_score, accuracy_score, roc_curve, auc
 
 
@@ -140,10 +142,12 @@ def factorize(csv) -> pd.DataFrame():
 def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
     gs_dict = {}
     clfs_dict = {
-        'DTC': DecisionTreeClassifier(random_state=0),
-        'RFC': RandomForestClassifier(random_state=0),
-        'KNN': KNeighborsClassifier(),
-        'LR': LogisticRegression(random_state=35)
+#         'DTC': DecisionTreeClassifier(random_state=0),
+#         'RFC': RandomForestClassifier(random_state=0),
+#         'KNN': KNeighborsClassifier(),
+#         'LR': LogisticRegression(random_state=35)
+#         'XGB': XGBClassifier(random_state=0)
+        'SVC': SVC(random_state=0)
     }
     param_grids = {
         'DTC': {
@@ -159,16 +163,31 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
             '__max_depth' : [1,2,3,5,10,20],
             '__criterion' : ['gini', 'entropy'],
             '__class_weight': [None,'balanced'],
-            '__max_features': ['auto']
+            '__max_features' : list(range(6,32,5))+['auto']
         },
         'KNN': {
             '__n_neighbors': range(1, 12),
             '__weights': ['uniform', 'distance'],
         },
         'LR': {
-            "__C": np.logspace(-3,3,7), 
+            "__C": np.logspace(-4,4,20), 
             "__penalty":["l1","l2"]
-        }# l1 lasso l2 ridge
+        },
+        'XGB': {
+            '__n_estimators': [80, 100,200,300]
+            '__min_child_weight': [1, 5, 10],
+            '__gamma': [0.5, 1, 1.5, 2, 5],
+            '__subsample': [0.6, 0.8, 1.0],
+            '__colsample_bytree': [0.6, 0.8, 1.0],
+            '__max_depth': [3, 4, 5]
+        },
+        'SVC': {
+            'kernel':('linear', 'rbf'), 
+            'C':(1,0.25,0.5,0.75),
+            'gamma': (1,2,3,5,10,'auto'),
+            'decision_function_shape':('ovo','ovr'),
+            'shrinking':(True,False)
+        }
     }
     scorer = make_scorer(f1_score, average='micro')            
     for clf_name in clfs_dict:
@@ -188,11 +207,10 @@ def model_selection(x_train, x_valid, y_train, y_valid):
     gs_dict = prepare_models(use_scaler = True, use_grid_search = True, verbose=False)
 #     gs_dict = prepare_models(verbose=True)
     for gs_name in gs_dict:        
-        gs = gs_dict[gs_name].fit(x_train,y_train)
         print("\n==================================================================\n", gs_name, end="\t")
-#         print("\tF1-Score: ", np.round(100*gs.score(x_valid, y_valid),1), "%", sep="", end="\t")
-        print("\tAccuracy Valid: ", np.round(100*accuracy_score(y_valid,gs.predict(x_valid)),1),"%",sep="", end="")
-        print("\tAccuracy Train: ", np.round(100*accuracy_score(y_train,gs.predict(x_train)),1),"%",sep="")
+        gs = gs_dict[gs_name].fit(x_train,y_train)
+        print("\tAccuracy Train: ", np.round(100*accuracy_score(y_train,gs.predict(x_train)),1),"%",sep="", end="")
+        print("\tAccuracy Valid: ", np.round(100*accuracy_score(y_valid,gs.predict(x_valid)),1),"%",sep="")
         print("\tBest params: ", gs.best_params_)
         print(pd.DataFrame(confusion_matrix(y_valid, gs.predict(x_valid)),
                      columns=['Predicted 0', 'Predicted 1', 'Predicted 2'],
@@ -235,21 +253,22 @@ def feature_extraction(csv):
     x_train = X[is_train].values
     x_train = pd.DataFrame(x_train).fillna(0)
     x_test = X[is_train == False].values
-    
+    return x_train, y_train, x_test
     
 if __name__ == "__main__":
     csv = load_data()
-    x_train, y_train = feature_extraction(csv)
+    x_train, y_train, x_test = feature_extraction(csv)
     x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=0)
+    
 #     x_tr, x_valid, y_tr, y_valid = pca_decomp(x_tr, x_valid, y_tr, y_valid)     
 #     for i in [x_tr, y_tr, x_valid, y_valid]:
 #         print(i.shape)
-    print('Original dataset shape train: %s' % Counter(y_tr))
-    print('Original dataset shape valid: %s' % Counter(y_valid))
-        
-    sm = SMOTE(random_state=0)
-    x_tr, y_tr = sm.fit_resample(x_tr, y_tr)
+#     print('Original dataset shape train: %s' % Counter(y_tr))
+#     sm = SMOTE(random_state=0)
+#     x_tr, y_tr = sm.fit_resample(x_tr, y_tr)
+#     print('Original dataset shape train: %s' % Counter(y_tr))
     
     gs_dict = model_selection(x_tr,x_valid, y_tr, y_valid)
+    
 #     clf = gs_dict["LR"]
 #     predict(clf, x_test)
