@@ -226,7 +226,7 @@ def prepare_models(use_scaler = False, use_grid_search = False, verbose=False):
     return gs_dict
         
 def model_selection(x_train, x_valid, y_train, y_valid):
-    gs_dict = prepare_models(use_scaler = True, use_grid_search = True, verbose=True)
+    gs_dict = prepare_models(use_scaler = True, use_grid_search = True, verbose=False)
     for gs_name in gs_dict:        
         print("\n==================================================================\n", gs_name, end="\t")
         gs = gs_dict[gs_name].fit(x_train,y_train)
@@ -238,24 +238,6 @@ def model_selection(x_train, x_valid, y_train, y_valid):
                      index=['Actual 0', 'Actual 1', 'Actual 2']))
         gs_dict[gs_name] = gs
     return gs_dict
-
-def predict(clf, x_test, f_name):
-#     x_test = pd.DataFrame(x_test)
-    y_predict = clf.predict(x_test)
-    y_predict = pd.DataFrame(y_predict)
-    y_predict[y_predict == 0] = "bad"
-    y_predict[y_predict == 1] = "good"
-    y_predict[y_predict == 2] = "neutral"
-    y_predict.columns = ["Prediction"]
-    y_predict.to_csv(f_name,index_label ="Id")
-
-def pca_decomp(x_tr, x_valid, y_tr, y_valid):
-    x_tr = StandardScaler().fit_transform(x_tr)
-    pca = PCA(n_components=0.9, svd_solver='full', random_state=0).fit(x_tr)
-    x_tr = pca.transform(x_tr)
-    x_valid = pca.transform(x_valid)
-    print(len(pca.components_))
-    return x_tr, x_valid, y_tr, y_valid
 
 def feature_encoding(X_train, y_train, X_test, method='ordinal'):
     columns = list(X_train.select_dtypes(include=['object']).columns)    
@@ -277,39 +259,61 @@ def feature_encoding(X_train, y_train, X_test, method='ordinal'):
     return X_train.values, y_train, X_test.values
 
 def filling_nans(data, method = "method"):
-    df = data.copy()
-    for label in df.columns:
-        if method == "randomdistrubuted":
-            df[label].fillna(lambda x: random.choice(df[df[label] != np.nan][label]), inplace =True)
-        elif method=="new_value":
-            df[label].fillna(0, inplace =True)
-        elif method=="mostfrequent":
-            df[label].fillna(df[label].value_counts().idxmax(), inplace =True)
-    return df
+    data_filled = []
+    for df_org in data:
+        df = df_org.copy()
+        for label in df.columns:
+            if method == "randomdistrubuted":
+                df[label].fillna(lambda x: random.choice(df[df[label] != np.nan][label]), inplace =True)
+            elif method=="new_value":
+                df[label].fillna(0, inplace =True)
+            elif method=="mostfrequent":
+                df[label].fillna(df[label].value_counts().idxmax(), inplace =True)
+        data_filled.append(df)
+    return data_filled
 
 def perform_final_training(clf, x_tr, y_tr):
     return clf.fit(x_tr, y_tr)
     
+def upsampling(x_tr, y_tr, method="smote"):
+    sm = SMOTE(random_state=0)
+    return sm.fit_resample(x_tr, y_tr)
     
+def dim_reduce(x_tr, x_valid, x_test, method="pca"):
+    if method=="pca":
+        x_tr = StandardScaler().fit_transform(x_tr)
+        pca = PCA(n_components=0.9, svd_solver='full', random_state=0).fit(x_tr)
+        x_tr = pca.transform(x_tr)
+        x_valid = pca.transform(x_valid)
+        x_test = pca.transform(x_test)
+        # print(len(pca.components_))
+    return x_tr, x_valid, x_test
+    
+def pretrain_predict(clf, x_test, x_tr, y_tr, f_name):
+    clf = perform_final_training(clf, x_tr, y_tr)
+    predict(clf, x_test, f_name)
+    
+def predict(clf, x_test, f_name):
+#     x_test = pd.DataFrame(x_test)
+    y_predict = clf.predict(x_test)
+    y_predict = pd.DataFrame(y_predict)
+    y_predict[y_predict == 0] = "bad"
+    y_predict[y_predict == 1] = "good"
+    y_predict[y_predict == 2] = "neutral"
+    y_predict.columns = ["Prediction"]
+    y_predict.to_csv(f_name,index_label ="Id")
+        
 if __name__ == "__main__":
     X_train, y_train, X_test = load_data() #X_train and X_test are Dataframes
-    X_train = filling_nans(X_train, method = "new_value")
-    X_test = filling_nans(X_test, method = "new_value")
+    X_train, X_test = filling_nans((X_train, X_test), method = "new_value")
     x_train, y_train, x_test = feature_encoding(X_train, y_train, X_test, method="onehot") #x_train and x_test are nd.arrays
     x_tr, x_valid, y_tr, y_valid = train_test_split(x_train, y_train, test_size=0.3,random_state=0)
-
-    # x_tr, x_valid, y_tr, y_valid = pca_decomp(x_tr, x_valid, y_tr, y_valid)     
-    
-    sm = SMOTE(random_state=0)
-    x_tr, y_tr = sm.fit_resample(x_tr, y_tr)
-    
+    x_tr, x_valid, x_test = dim_reduce(x_tr, x_valid, x_test, method="pca")
+    x_tr, y_tr = upsampling(x_tr, y_tr, method="smote")
     gs_dict = model_selection(x_tr,x_valid, y_tr, y_valid)
     
-    # gs_dict = model_selection(x_tr,x_valid, y_tr, y_valid)
     clf = gs_dict["XGB"]
-    predict(clf, x_test, "result_only_train.csv")
-    clf = perform_final_training(clf, x_tr, y_tr)
-    predict(clf, x_test, "result_valid_train.csv")
+    pretrain_predict(clf, x_test, x_tr, y_tr, "result_only_train.csv")
 
 
 # if __name__ == "__main__":
