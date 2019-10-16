@@ -15,21 +15,41 @@ Predicting the superhero alignment according to her traits and powers.
 - Create virtual environment from attached file (TO BE DONE)
 - Run notebook (TO BE DONE)
 
-# Work Split
+# Project ML Stack
 
-- Data analysis
-  - Decide what to do with NaNs
-  - How to factorize some features
-- Data engineering
+- Data analysis - [stats.py](https://github.com/SaxMan96/Superhero-Classifier-ML-UB/blob/master/stats.py)
+  - Nans
+  - Unique
+  - Value Types
+  - Min/Max
+- Data engineering - [utilities.py](https://github.com/SaxMan96/Superhero-Classifier-ML-UB/blob/master/utilities.py)
   - NaNs
-  - Factorization
-  - Feature selection [?]
-- Model Selection - performance check not needed so no Test set 
-  - Choose models to test
-  - Cross Validation
-  - Train
-  - Valid
-- Submit
-  - Train Model on whole set
-  - Create output file (programmatically)
-  - Submit on Kaggle
+  
+    - Filling With 0
+  - Manual Feature Manipulation
+    - (TO BE DONE)
+- Feature Encoding
+  - OrdinalEncoder
+  - BinaryEncoder
+  - OneHotEncoder
+  - BaseNEncoder
+  - HashingEncoder
+- Feature selection
+  - (TO BE DONE)
+- Dimensionality Reduction
+  - PCA
+- Unbalanced Data Manipulations
+  - SMOTE - Up-sampling
+- Models
+  - DecisionTreeClassifier
+  - RandomForestClassifier
+  - KNeighborsClassifier
+  - LogisticRegression
+  - XGBClassifier
+  - SVC
+- Pipeline
+  - StandardScaler + Classifier
+- Parameter optimalization
+  - GridSearch + CV
+- Ensamble
+  - Voting Classifier
