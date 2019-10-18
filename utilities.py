@@ -8,7 +8,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
@@ -81,54 +80,6 @@ def bool_to_integer(csv) -> pd.DataFrame():
     return csv
 
 
-# def standarize_numerical_values(csv):
-#     for col in csv.columns:
-#         if col == 'train':
-#             continue
-#         if csv[col].dtype == np.float64:
-#             data = csv[col]
-#             std = data.std()
-#             data = data[(data < data.quantile(0.99)) & (data > data.quantile(0.01))]
-#             mean = data.mean()
-#             csv[col] = (csv[col] - mean) / std
-#     #             _ = plt.hist(csv[col], bins='auto', alpha = 0.5)
-#     #             plt.yscale('log')
-#     #             plt.title(f"Distr in {col} column")
-#     #             plt.show()
-#     return csv
-
-
-# def check_rows(csv):
-#     for row in range(len(csv)):
-#         print(row, csv.iloc[row].isna().sum())
-#     return csv
-
-
-# def distribution_in_columns(csv):
-#     for col in list(csv):
-#         print(csv[col].value_counts())
-#     return csv
-
-
-# def plot_dist_y(csv):
-#     plt.pie([len(csv[csv['Alignment'] == 'good']), len(csv[csv['Alignment'] == 'bad']),
-#              len(csv[csv['Alignment'] == 'neutral'])], labels=['good', 'bad', 'neutral'])
-#     plt.show()
-#     return csv
-
-
-# def factorize(csv) -> pd.DataFrame():
-# #     for col in csv.select_dtypes(include=['object']).columns:
-# #         if col == "Alignment":
-# #             continue
-# #         dummy = pd.get_dummies(csv[col])
-# #         dummy.columns = [col + " " + x for x in dummy.columns]
-# #         dummy = dummy.drop([dummy.columns[-1]], axis=1)
-# #         csv = csv.drop(col, axis=1)
-# #         csv = pd.concat([csv, dummy], axis=1)
-# #     return csv
-
-
 def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbose=False):
     gs_dict = {}
     clfs_dict = {
@@ -150,9 +101,6 @@ def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbos
             '__min_weight_fraction_leaf': np.linspace(0.05, 0.4, 5)
         },
         'RFC': {
-            # '__n_estimators': [50],
-            # '__max_depth': [20],
-            # '__criterion': ['entropy'],
             '__class_weight': [None],
             '__n_estimators': [15, 50, 100],
             '__max_depth': [20, 30],
@@ -160,8 +108,6 @@ def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbos
             '__max_features': list(range(16, 22, 3))
         },
         'KNN': {
-            # '__n_neighbors': [7],
-            # '__weights': ['distance'],
             '__n_neighbors': range(7, 13),
             '__weights': ['uniform', 'distance'],
         },
@@ -178,12 +124,6 @@ def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbos
             '__min_child_weight': [1],
             '__n_estimators': [100],
             '__subsample': [0.6]
-            # '__n_estimators': [80, 100,200,300],
-            # '__min_child_weight': [1, 5, 10],
-            # '__gamma': [0.5, 1, 1.5, 2, 5],
-            # '__subsample': [0.6, 0.8, 1.0],
-            # '__colsample_bytree': [0.6, 0.8, 1.0],
-            # '__max_depth': [3, 4, 5]
         },
 
         'SVC': {
@@ -192,11 +132,6 @@ def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbos
             '__gamma': [1],
             '__kernel': ['rbf'],
             '__shrinking': [True]
-            # '__kernel': ('linear', 'rbf'),
-            # '__C': [1],
-            # '__gamma': (1, 2, 'auto'),
-            # '__decision_function_shape': ('ovo', 'ovr'),
-            # '__shrinking': (True, False)
         }
 
     }
