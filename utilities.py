@@ -8,7 +8,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
@@ -24,14 +23,54 @@ def load_data():
     #         print(get_stats(csv))
     csv = bool_to_integer(csv)
     is_train = csv["train"] == 1
-    csv = csv.drop("train", axis=1)
     Y = csv["Alignment"]
-    csv = csv.drop("Alignment", axis=1)
-    X = csv
+    X = csv.drop("Alignment", axis=1)
     y_train, uniques = pd.factorize(Y[is_train])
+    return X, y_train
+
+
+def manual_preprocessing(X):
+    # Change to lowercase
+    X["Eye color"] = X["Eye color"].str.lower()
+    X["Hair color"] = X["Hair color"].str.lower()
+    X["Race"] = X["Race"].str.lower()
+    X["Publisher"] = X["Publisher"].str.lower()
+
+    # Eye color, change 'bown to brown', group low frequency as 'rare_eye'
+    X.loc[(X["Eye color"] == 'bown'), ["Eye color"]] = "brown"
+    X.loc[(X["Eye color"] != 'blue') &
+          (X["Eye color"] != 'brown') &
+          (X["Eye color"] != 'green') &
+          (X["Eye color"] != 'red') &
+          (X["Eye color"] != 'black') &
+          (X["Eye color"] != 'yellow') &
+          (X["Eye color"] != 'white'),
+          ['Eye color']] = 'rare_eye'
+
+    # Hair color, group low frequency as "rare_hair"'
+    X.loc[(X["Hair color"] != 'black') &
+          (X["Hair color"] != 'blond') &
+          (X["Hair color"] != 'brown') &
+          (X["Hair color"] != 'no hair') &
+          (X["Hair color"] != 'red'),
+          ["Hair color"]] = "rare_hair"
+
+    # Race, group low frequency as "rare_race"'
+
+    X.loc[(X["Race"] != 'human') &
+          (X["Race"] != 'mutant'),
+          ["Race"]] = "rare_race"
+
+    # Publisher, group low frequency as "rare_publisher"'
+    X.loc[(X["Publisher"] != 'marvel comics') &
+          (X["Publisher"] != 'dc comics'),
+          ["Publisher"]] = "rare_publisher"
+
+    is_train = X["train"] == 1
+    X = X.drop("train", axis=1)
     X_train = X[is_train]
     X_test = X[is_train == False]
-    return X_train, y_train, X_test
+    return X_train, X_test
 
 
 def bool_to_integer(csv) -> pd.DataFrame():
@@ -39,54 +78,6 @@ def bool_to_integer(csv) -> pd.DataFrame():
         if csv[col].dtype == bool:
             csv[col] = csv[col].astype(int)
     return csv
-
-
-# def standarize_numerical_values(csv):
-#     for col in csv.columns:
-#         if col == 'train':
-#             continue
-#         if csv[col].dtype == np.float64:
-#             data = csv[col]
-#             std = data.std()
-#             data = data[(data < data.quantile(0.99)) & (data > data.quantile(0.01))]
-#             mean = data.mean()
-#             csv[col] = (csv[col] - mean) / std
-#     #             _ = plt.hist(csv[col], bins='auto', alpha = 0.5)
-#     #             plt.yscale('log')
-#     #             plt.title(f"Distr in {col} column")
-#     #             plt.show()
-#     return csv
-
-
-# def check_rows(csv):
-#     for row in range(len(csv)):
-#         print(row, csv.iloc[row].isna().sum())
-#     return csv
-
-
-# def distribution_in_columns(csv):
-#     for col in list(csv):
-#         print(csv[col].value_counts())
-#     return csv
-
-
-# def plot_dist_y(csv):
-#     plt.pie([len(csv[csv['Alignment'] == 'good']), len(csv[csv['Alignment'] == 'bad']),
-#              len(csv[csv['Alignment'] == 'neutral'])], labels=['good', 'bad', 'neutral'])
-#     plt.show()
-#     return csv
-
-
-# def factorize(csv) -> pd.DataFrame():
-#     for col in csv.select_dtypes(include=['object']).columns:
-#         if col == "Alignment":
-#             continue
-#         dummy = pd.get_dummies(csv[col])
-#         dummy.columns = [col + " " + x for x in dummy.columns]
-#         dummy = dummy.drop([dummy.columns[-1]], axis=1)
-#         csv = csv.drop(col, axis=1)
-#         csv = pd.concat([csv, dummy], axis=1)
-#     return csv
 
 
 def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbose=False):
@@ -97,31 +88,26 @@ def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbos
         'KNN': KNeighborsClassifier(),
         'LR': LogisticRegression(random_state=35, solver='liblinear', multi_class='auto'),
         'XGB': XGBClassifier(random_state=0),
-        'SVC': SVC(random_state=0)
+        # 'SVC': SVC(random_state=0)
     }
 
     param_grids = {
         'DTC': {
-            '__class_weight': [None],
-            '__presort': [False],
-            '__max_depth': [None],
+            '__class_weight': [None, 'balanced'],
+            '__presort': [False, True],
+            '__max_depth': [1, 2, 3, 5, 10, 20, None],
             '__criterion': ['gini', 'entropy'],
-            '__min_samples_split': [0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0],
+            '__min_samples_split': [0.2, 0.3, 0.5],
             '__min_weight_fraction_leaf': np.linspace(0.05, 0.4, 5)
         },
         'RFC': {
-            # '__n_estimators': [50],
-            # '__max_depth': [20],
-            # '__criterion': ['entropy'],
             '__class_weight': [None],
             '__n_estimators': [15, 50, 100],
-            '__max_depth': [5, 10, 20],
+            '__max_depth': [20, 30],
             '__class_weight': [None, 'balanced'],
-            '__max_features': list(range(16, 32, 3)) + ['auto']
+            '__max_features': list(range(16, 22, 3))
         },
         'KNN': {
-            # '__n_neighbors': [7],
-            # '__weights': ['distance'],
             '__n_neighbors': range(7, 13),
             '__weights': ['uniform', 'distance'],
         },
@@ -138,12 +124,6 @@ def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbos
             '__min_child_weight': [1],
             '__n_estimators': [100],
             '__subsample': [0.6]
-            # '__n_estimators': [80, 100,200,300],
-            # '__min_child_weight': [1, 5, 10],
-            # '__gamma': [0.5, 1, 1.5, 2, 5],
-            # '__subsample': [0.6, 0.8, 1.0],
-            # '__colsample_bytree': [0.6, 0.8, 1.0],
-            # '__max_depth': [3, 4, 5]
         },
 
         'SVC': {
@@ -152,16 +132,12 @@ def prepare_models(clfs_to_test, use_scaler=False, use_grid_search=False, verbos
             '__gamma': [1],
             '__kernel': ['rbf'],
             '__shrinking': [True]
-            # '__kernel': ('linear', 'rbf'),
-            # '__C': [1],
-            # '__gamma': (1, 2, 'auto'),
-            # '__decision_function_shape': ('ovo', 'ovr'),
-            # '__shrinking': (True, False)
         }
 
     }
     scorer = make_scorer(f1_score, average='micro')
-    for clf_name in {your_key: clfs_dict[your_key] for your_key in clfs_to_test}:
+    clfs_dict = {your_key: clfs_dict[your_key] for your_key in clfs_to_test}
+    for clf_name in clfs_dict:
         if use_scaler:
             pipe_line = Pipeline([('scaler', StandardScaler()), ('', clfs_dict[clf_name])])
         else:
